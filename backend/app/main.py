@@ -1,7 +1,8 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import router as api_router
-from app.database import Base, engine
+from backend.app.api.routes import router as api_router
+from backend.app.core.config import settings
+from backend.app.database import Base, engine
 
 Base.metadata.create_all(bind=engine)
 

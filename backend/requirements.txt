@@ -1,5 +1,10 @@
-fastapi
-uvicorn
-sqlalchemy
-pydantic
-websockets
+fastapi==0.115.0
+uvicorn==0.23.2
+sqlalchemy==2.0.23
+python-jose[cryptography]==3.3.0
+passlib==1.7.4
+python-multipart==0.0.6
+pydantic==2.5.3
+python-dotenv==1.0.0
+websockets==11.0.3
+greenlet==3.0.1
