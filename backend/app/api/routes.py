@@ -1,20 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 import hashlib
 from datetime import datetime, timedelta
 from jose import jwt
 from typing import List
+from sqlalchemy import func, select
 
 from app.database import get_db
 from app.repositories import product_repo, order_repo, user_repo, cart_repo
 from app.schemas import product as schemas_product, user as schemas_user, order as schemas_order, cart as schemas_cart
-from app.models import user as models_user, cart as models_cart
+from app.models import user as models_user, cart as models_cart, order as models_order, product as models_product
 from app.api import deps
 from app.core import config
 
 router = APIRouter(prefix="/api")
 
+# Auth endpoints
 @router.post("/register", response_model=schemas_user.User)
 def register(user: schemas_user.UserCreate, db: Session = Depends(get_db)):
     if user_repo.get_user_by_username(db, user.username):
@@ -41,6 +43,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 def read_me(current_user: models_user.User = Depends(deps.get_current_user)):
     return current_user
 
+# Product endpoints
 @router.get("/products", response_model=List[schemas_product.Product])
 def read_products(db: Session = Depends(get_db)):
     return product_repo.get_products(db)
@@ -53,6 +56,7 @@ def create_product(
 ):
     return product_repo.create_product(db, product)
 
+# Cart endpoints
 @router.get("/cart", response_model=List[schemas_cart.Cart])
 def get_cart(
     db: Session = Depends(get_db),
@@ -95,112 +99,123 @@ def clear_cart(
     cart_repo.clear_cart(db, current_user.id)
     return {"message": "Корзина очищена"}
 
-@router.post("/orders", response_model=schemas_order.Order)
-def create_order(
-    order: schemas_order.OrderCreate,
+# Order endpoints
+@router.get("/orders", response_model=List[schemas_order.Order])
+def read_orders(
     db: Session = Depends(get_db),
     current_user: models_user.User = Depends(deps.get_current_user)
 ):
-    cart_items = cart_repo.get_user_cart(db, current_user.id)
-    if not cart_items:
-        raise HTTPException(status_code=400, detail="Корзина пуста")
-
-    product_ids = [item.product_id for item in cart_items]
-    products = product_repo.get_products(db)
-    order_products = [p for p in products if p.id in product_ids]
+    orders = db.query(models_order.Order)\
+        .filter(models_order.Order.user_id == current_user.id)\
+        .order_by(models_order.Order.created_at.desc())\
+        .all()
     
-    db_order = order_repo.create_order(db, schemas_order.OrderCreate(
-        user_id=current_user.id,
-        product_ids=product_ids,
-        status="В обработке"
-    ))
-    
-    cart_repo.clear_cart(db, current_user.id)
-    
-    total = sum(p.price for p in order_products)
-    
-    return schemas_order.Order(
-        id=db_order.id,
-        user_id=db_order.user_id,
-        created_at=db_order.created_at,
-        status=db_order.status,
-        products=order_products,
-        total=total
-    )
+    result = []
+    for order in orders:
+        # Получаем все товары заказа с их ценами
+        products = db.query(models_product.Product)\
+            .join(models_order.order_product_table)\
+            .filter(models_order.order_product_table.c.order_id == order.id)\
+            .all()
+        
+        # Считаем общую сумму
+        total = sum(product.price for product in products)
+        
+        result.append({
+            "id": order.id,
+            "user_id": order.user_id,
+            "created_at": order.created_at,
+            "status": order.status,
+            "total": total
+        })
+    return result
 
 @router.post("/orders/checkout", response_model=schemas_order.Order)
 def checkout_order(
     db: Session = Depends(get_db),
     current_user: models_user.User = Depends(deps.get_current_user)
 ):
-    cart_items = cart_repo.get_user_cart(db, current_user.id)
+    # Получаем корзину с продуктами
+    cart_items = db.query(models_cart.Cart)\
+        .options(joinedload(models_cart.Cart.product))\
+        .filter(models_cart.Cart.user_id == current_user.id)\
+        .all()
+
     if not cart_items:
         raise HTTPException(status_code=400, detail="Корзина пуста")
 
-    product_ids = [item.product_id for item in cart_items]
-    
-    db_order = order_repo.create_order(db, schemas_order.OrderCreate(
+    # Создаем заказ
+    db_order = models_order.Order(
         user_id=current_user.id,
-        product_ids=product_ids,
-        status="В обработке"
-    ))
-    
-    cart_repo.clear_cart(db, current_user.id)
-    
-    products = product_repo.get_products(db)
-    order_products = [p for p in products if p.id in product_ids]
-    
-    return schemas_order.Order(
-        id=db_order.id,
-        user_id=db_order.user_id,
-        product_ids=product_ids,
-        created_at=db_order.created_at,
-        status=db_order.status,
-        products=order_products
+        status="В обработке",
+        created_at=datetime.utcnow()
     )
+    db.add(db_order)
+    db.commit()
+    db.refresh(db_order)
 
-@router.get("/orders", response_model=List[schemas_order.Order])
-def read_orders(
-    db: Session = Depends(get_db),
-    current_user: models_user.User = Depends(deps.get_current_user)
-):
-    orders = order_repo.get_user_orders(db, current_user.id)
-    result = []
-    for order in orders:
-        total = sum(p.price for p in order.products)
-        result.append({
-            "id": order.id,
-            "user_id": order.user_id,
-            "created_at": order.created_at,
-            "status": order.status,
-            "products": order.products,
-            "total": total
-        })
-    return result
+    # Добавляем товары в заказ и считаем сумму
+    total = 0
+    for item in cart_items:
+        if not item.product:
+            continue
+        
+        # Добавляем связь между заказом и продуктом
+        db.execute(
+            models_order.order_product_table.insert().values(
+                order_id=db_order.id,
+                product_id=item.product_id
+            )
+        )
+        total += item.product.price * item.quantity
 
-@router.get("/orders/user/{user_id}", response_model=List[schemas_order.Order])
-def read_user_orders(
-    user_id: int,
-    db: Session = Depends(get_db),
-    current_user: models_user.User = Depends(deps.get_current_user)
-):
-    if current_user.role != "admin" and current_user.id != user_id:
-        raise HTTPException(status_code=403, detail="Доступ запрещён")
-    return order_repo.get_user_orders(db, user_id)
+    # Очищаем корзину
+    db.query(models_cart.Cart)\
+        .filter(models_cart.Cart.user_id == current_user.id)\
+        .delete()
+    db.commit()
 
+    return {
+        "id": db_order.id,
+        "user_id": db_order.user_id,
+        "created_at": db_order.created_at,
+        "status": db_order.status,
+        "total": total
+    }
+
+# Admin endpoints
 @router.get("/admin/orders", response_model=List[schemas_order.Order])
 def get_all_orders_admin(
     db: Session = Depends(get_db),
     _: models_user.User = Depends(deps.get_current_admin)
 ):
-    orders = order_repo.get_orders(db)
-    return [{
-        "id": order.id,
-        "user_id": order.user_id,
-        "created_at": order.created_at,
-        "status": order.status,
-        "products": order.products
-    } for order in orders]
+    orders = db.query(models_order.Order)\
+        .order_by(models_order.Order.created_at.desc())\
+        .all()
+    
+    result = []
+    for order in orders:
+        # Получаем все продукты заказа и их количество
+        products = db.query(
+            models_product.Product,
+            func.count(models_product.Product.id).label('quantity')
+        )\
+            .join(models_order.order_product_table)\
+            .filter(models_order.order_product_table.c.order_id == order.id)\
+            .group_by(models_product.Product.id)\
+            .all()
+        
+        # Считаем общую сумму
+        total = sum(product.price * quantity for product, quantity in products)
+        
+        result.append({
+            "id": order.id,
+            "user_id": order.user_id,
+            "created_at": order.created_at,
+            "status": order.status,
+            "total": total
+        })
+    return result
 
 @router.get("/admin/users", response_model=List[schemas_user.User])
 def get_all_users(

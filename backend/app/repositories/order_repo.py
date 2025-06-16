@@ -11,6 +11,7 @@ def create_order(db: Session, order: SchemaOrderCreate):
     db.commit()
     db.refresh(db_order)
     
+    # Добавляем связь с товарами
     for product_id in order.product_ids:
         db.execute(
             order_product_table.insert().values(

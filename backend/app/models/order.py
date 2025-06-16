@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Table, func, String
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, Table, String
 from sqlalchemy.orm import relationship
 from app.database import Base
+from datetime import datetime
 
 order_product_table = Table(
     "order_products",
@@ -14,7 +15,7 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     status = Column(String, default="В обработке")
 
     user = relationship("User", back_populates="orders")

@@ -1,36 +1,37 @@
-.user-page {
+.user-page-container {
     max-width: 1000px;
-    margin: 20px auto;
-    padding: 0;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Arial', sans-serif;
 }
 
-.header-strip {
-    height: 8px;
-    background: linear-gradient(90deg, #3498db, #2ecc71);
-    width: 100%;
+.user-loading {
+    text-align: center;
+    padding: 50px;
+    font-size: 18px;
+    color: #666;
 }
 
 .user-header {
-    padding: 20px;
-    padding-bottom: 0;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
 }
 
 .user-header h1 {
     color: #2c3e50;
-    margin: 15px 0 20px;
-}
-
-.user-info {
-    display: flex;
-    gap: 30px;
     margin-bottom: 20px;
 }
 
-.info-item {
+.user-info-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    gap: 30px;
+}
+
+.user-info-item {
     display: flex;
     flex-direction: column;
 }
@@ -47,8 +48,19 @@
     color: #34495e;
 }
 
-.orders-section {
-    padding: 20px;
+.role-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 14px;
+    color: white;
+}
+
+.role-badge.admin {
+    background-color: #e74c3c;
+}
+
+.role-badge.user {
+    background-color: #3498db;
 }
 
 .orders-section h2 {
@@ -58,50 +70,54 @@
     border-bottom: 1px solid #eee;
 }
 
-.no-orders {
+.no-orders-message {
     text-align: center;
-    color: #7f8c8d;
-    padding: 30px;
-    background-color: #f8f9fa;
+    padding: 40px;
+    background: #f8f9fa;
     border-radius: 8px;
+    color: #7f8c8d;
 }
 
 .orders-list {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 15px;
 }
 
 .order-card {
-    padding: 20px;
+    background: white;
     border-radius: 8px;
-    background-color: #f8f9fa;
-    border: 1px solid #eee;
-    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    padding: 20px;
+    transition: transform 0.2s;
 }
 
 .order-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .order-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
 }
 
-.order-id {
+.order-number {
     font-weight: 600;
     color: #2c3e50;
+}
+
+.order-date {
+    color: #7f8c8d;
+    font-size: 14px;
 }
 
 .order-status {
     padding: 4px 10px;
     border-radius: 12px;
     font-size: 14px;
-    font-weight: 500;
     color: white;
 }
 
@@ -113,80 +129,22 @@
     background-color: #2ecc71;
 }
 
-.order-status.отменен {
-    background-color: #e74c3c;
-}
-
-.order-date {
-    font-size: 14px;
-    color: #7f8c8d;
-    margin-bottom: 15px;
-}
-
-.order-products h4 {
-    margin-bottom: 10px;
-    color: #34495e;
-}
-
-.order-products ul {
-    list-style-type: none;
-    padding-left: 0;
-    margin: 0;
-}
-
-.order-products li {
-    padding: 8px 0;
-    border-bottom: 1px dashed #eee;
-    display: flex;
-    justify-content: space-between;
-}
-
-.order-total {
-    margin-top: 15px;
-    text-align: right;
-    font-weight: 600;
-    color: #2c3e50;
-    font-size: 18px;
-}
-
-.order-products .product-item {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    padding: 10px 0;
-    border-bottom: 1px solid #eee;
-}
-
-.product-thumbnail {
-    width: 50px;
-    height: 50px;
-    object-fit: cover;
-    border-radius: 4px;
-}
-
-.product-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.product-name {
-    font-weight: 500;
-}
-
-.product-price {
-    color: #e74c3c;
-    font-weight: bold;
-}
-
-.order-footer {
+.order-summary {
     display: flex;
     justify-content: flex-end;
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid #eee;
+    align-items: center;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #eee;
 }
 
-.order-total {
+.total-label {
+    font-size: 16px;
+    color: #7f8c8d;
+}
+
+.total-amount {
     font-size: 18px;
     font-weight: bold;
+    color: #2c3e50;
 }

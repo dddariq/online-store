@@ -10,7 +10,6 @@ const AdminPage = () => {
     const [orders, setOrders] = useState([]);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
 
     useEffect(() => {
         if (!auth.token || auth.user?.role !== 'admin') {
@@ -20,36 +19,18 @@ const AdminPage = () => {
 
         const fetchData = async () => {
             try {
-                setLoading(true);
                 const [ordersRes, usersRes] = await Promise.all([
                     axios.get('http://localhost:8000/api/admin/orders', {
-                        headers: { 
-                            Authorization: `Bearer ${auth.token}`,
-                            'Accept': 'application/json'
-                        }
+                        headers: { Authorization: `Bearer ${auth.token}` }
                     }),
                     axios.get('http://localhost:8000/api/admin/users', {
-                        headers: { 
-                            Authorization: `Bearer ${auth.token}`,
-                            'Accept': 'application/json'
-                        }
+                        headers: { Authorization: `Bearer ${auth.token}` }
                     })
                 ]);
-
-                if (ordersRes.data && Array.isArray(ordersRes.data)) {
-                    setOrders(ordersRes.data);
-                } else {
-                    setOrders([]);
-                }
-
-                if (usersRes.data && Array.isArray(usersRes.data)) {
-                    setUsers(usersRes.data);
-                } else {
-                    setUsers([]);
-                }
+                setOrders(ordersRes.data);
+                setUsers(usersRes.data);
             } catch (error) {
                 console.error('Error loading data:', error);
-                setError('Не удалось загрузить данные');
             } finally {
                 setLoading(false);
             }
@@ -59,7 +40,8 @@ const AdminPage = () => {
     }, [auth.token, auth.user, navigate]);
 
     const formatMoscowTime = (dateString) => {
-        return new Date(dateString).toLocaleString('ru-RU', {
+        const date = new Date(dateString);
+        return date.toLocaleString('ru-RU', {
             timeZone: 'Europe/Moscow',
             day: 'numeric',
             month: 'long',
@@ -69,76 +51,85 @@ const AdminPage = () => {
         });
     };
 
-    if (loading) {
-        return <div className="admin-page">Загрузка...</div>;
-    }
-
-    if (error) {
-        return <div className="admin-page error">{error}</div>;
-    }
+    if (loading) return <div className="admin-loading">Загрузка данных...</div>;
 
     return (
-        <div className="admin-page">
-            <div className="header-strip"></div>
-            <h1>Административная панель</h1>
-            
-            <section className="admin-section">
-                <h2>Все заказы</h2>
-                <div className="admin-table-container">
-                    <table className="admin-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Пользователь</th>
-                                <th>Дата</th>
-                                <th>Статус</th>
-                                <th>Товары</th>
-                                <th>Сумма</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {orders.map(order => (
-                                <tr key={order.id}>
-                                    <td>{order.id}</td>
-                                    <td>{order.user_id}</td>
-                                    <td>{formatMoscowTime(order.created_at)}</td>
-                                    <td>{order.status}</td>
-                                    <td>
-                                        {order.products?.map(p => p.name).join(', ') || 'Нет товаров'}
-                                    </td>
-                                    <td>
-                                        {order.products?.reduce((sum, p) => sum + (p.price || 0), 0).toLocaleString()} ₽
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+        <div className="admin-container">
+            <div className="admin-header">
+                <h1>Панель администратора</h1>
+                <div className="admin-stats">
+                    <div className="stat-card">
+                        <span className="stat-value">{orders.length}</span>
+                        <span className="stat-label">Заказов</span>
+                    </div>
+                    <div className="stat-card">
+                        <span className="stat-value">{users.length}</span>
+                        <span className="stat-label">Пользователей</span>
+                    </div>
                 </div>
-            </section>
+            </div>
 
-            <section className="admin-section">
-                <h2>Пользователи</h2>
-                <div className="admin-table-container">
-                    <table className="admin-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Логин</th>
-                                <th>Роль</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {users.map(user => (
-                                <tr key={user.id}>
-                                    <td>{user.id}</td>
-                                    <td>{user.username}</td>
-                                    <td>{user.role}</td>
+            <div className="admin-content">
+                <section className="orders-section">
+                    <h2>Управление заказами</h2>
+                    <div className="table-container">
+                        <table className="orders-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Пользователь</th>
+                                    <th>Дата</th>
+                                    <th>Статус</th>
+                                    <th>Сумма</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                            </thead>
+                            <tbody>
+                                {orders.map(order => (
+                                    <tr key={order.id}>
+                                        <td>{order.id}</td>
+                                        <td>{order.user_id}</td>
+                                        <td>{formatMoscowTime(order.created_at)}</td>
+                                        <td>
+                                            <span className={`status-badge ${order.status.toLowerCase()}`}>
+                                                {order.status}
+                                            </span>
+                                        </td>
+                                        <td>{order.total?.toLocaleString() || 0} ₽</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section className="users-section">
+                    <h2>Управление пользователями</h2>
+                    <div className="table-container">
+                        <table className="users-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Логин</th>
+                                    <th>Роль</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {users.map(user => (
+                                    <tr key={user.id}>
+                                        <td>{user.id}</td>
+                                        <td>{user.username}</td>
+                                        <td>
+                                            <span className={`role-badge ${user.role}`}>
+                                                {user.role === 'admin' ? 'Админ' : 'Пользователь'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
         </div>
     );
 };

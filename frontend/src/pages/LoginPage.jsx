@@ -3,6 +3,7 @@ import axios from 'axios'
 import { useDispatch } from 'react-redux'
 import { loginSuccess } from '../features/auth/authSlice'
 import { useNavigate } from 'react-router-dom'
+import './LoginPage.css'
 
 function LoginPage() {
     const dispatch = useDispatch()
@@ -10,22 +11,23 @@ function LoginPage() {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [mode, setMode] = useState('login')
+    const [isAdmin, setIsAdmin] = useState(false)
 
-    const handle = async () => {
+    const handleSubmit = async (e) => {
+        e.preventDefault()
         try {
             if (mode === 'login') {
-                const res = await axios.post('/api/token', new URLSearchParams({
-                    username,
-                    password,
-                    grant_type: 'password'
-                }), {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
+                const res = await axios.post('http://localhost:8000/api/login', 
+                    `username=${username}&password=${password}`, 
+                    {
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        }
                     }
-                })
+                )
                 
                 const token = res.data.access_token
-                const userRes = await axios.get('/api/me', {
+                const userRes = await axios.get('http://localhost:8000/api/me', {
                     headers: { Authorization: `Bearer ${token}` }
                 })
 
@@ -35,10 +37,10 @@ function LoginPage() {
                 }))
                 navigate('/')
             } else {
-                await axios.post('/api/register', { 
+                await axios.post('http://localhost:8000/api/register', { 
                     username, 
                     password, 
-                    role: 'user' 
+                    role: isAdmin ? 'admin' : 'user'
                 })
                 alert('Регистрация успешна! Теперь можно войти.')
                 setMode('login')
@@ -50,34 +52,45 @@ function LoginPage() {
     }
 
     return (
-        <div style={{ maxWidth: '400px', margin: '0 auto', padding: '20px' }}>
+        <div className="login-container">
             <h2>{mode === 'login' ? 'Вход' : 'Регистрация'}</h2>
-            <div style={{ marginBottom: '10px' }}>
-                <input 
-                    value={username} 
-                    onChange={e => setUsername(e.target.value)} 
-                    placeholder="Имя пользователя" 
-                    style={{ width: '100%', padding: '8px' }}
-                />
-            </div>
-            <div style={{ marginBottom: '10px' }}>
-                <input 
-                    type="password" 
-                    value={password} 
-                    onChange={e => setPassword(e.target.value)} 
-                    placeholder="Пароль" 
-                    style={{ width: '100%', padding: '8px' }}
-                />
-            </div>
-            <button 
-                onClick={handle}
-                style={{ width: '100%', padding: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none' }}
-            >
-                {mode === 'login' ? 'Войти' : 'Зарегистрироваться'}
-            </button>
+            <form onSubmit={handleSubmit}>
+                <div className="form-group">
+                    <input
+                        value={username}
+                        onChange={e => setUsername(e.target.value)}
+                        placeholder="Имя пользователя"
+                        required
+                    />
+                </div>
+                <div className="form-group">
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Пароль"
+                        required
+                    />
+                </div>
+                {mode === 'register' && (
+                    <div className="form-group admin-checkbox">
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={isAdmin}
+                                onChange={e => setIsAdmin(e.target.checked)}
+                            />
+                            Зарегистрировать как администратора
+                        </label>
+                    </div>
+                )}
+                <button type="submit" className="btn">
+                    {mode === 'login' ? 'Войти' : 'Зарегистрироваться'}
+                </button>
+            </form>
             <p 
-                onClick={() => setMode(mode === 'login' ? 'register' : 'login')} 
-                style={{ cursor: 'pointer', color: 'blue', textAlign: 'center', marginTop: '10px' }}
+                onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+                className="toggle-mode"
             >
                 {mode === 'login' ? 'Создать аккаунт' : 'Уже есть аккаунт? Войти'}
             </p>

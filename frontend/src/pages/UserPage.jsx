@@ -9,7 +9,6 @@ const UserPage = () => {
     const navigate = useNavigate();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
 
     useEffect(() => {
         if (!auth.token) {
@@ -17,110 +16,80 @@ const UserPage = () => {
             return;
         }
 
-        const fetchOrders = async () => {
+        const loadOrders = async () => {
             try {
-                setLoading(true);
-                const response = await axios.get('http://localhost:8000/api/orders', {
-                    headers: { 
-                        Authorization: `Bearer ${auth.token}`,
-                        'Accept': 'application/json'
-                    }
+                const { data } = await axios.get('http://localhost:8000/api/orders', {
+                    headers: { Authorization: `Bearer ${auth.token}` }
                 });
-                
-                if (response.data && Array.isArray(response.data)) {
-                    setOrders(response.data);
-                } else {
-                    setOrders([]);
-                    console.error('Invalid orders data format:', response.data);
-                }
+                setOrders(data);
             } catch (error) {
-                console.error('Error loading orders:', error);
-                setError('Не удалось загрузить заказы');
+                console.error("Ошибка загрузки заказов:", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchOrders();
+        loadOrders();
     }, [auth.token, navigate]);
 
     const formatMoscowTime = (dateString) => {
-        return new Date(dateString).toLocaleString('ru-RU', {
-            timeZone: 'Europe/Moscow',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
+    const date = new Date(dateString);
+    const moscowOffset = 3 * 60 * 60 * 1000; // MSK (UTC+3)
+    const moscowTime = new Date(date.getTime() + moscowOffset);
+    
+    return moscowTime.toLocaleString('ru-RU', {
+        timeZone: 'Europe/Moscow',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
 
-    if (loading) {
-        return <div className="user-page">Загрузка...</div>;
-    }
-
-    if (error) {
-        return <div className="user-page error">{error}</div>;
-    }
+    if (loading) return <div className="user-loading">Загрузка истории заказов...</div>;
 
     return (
-        <div className="user-page">
+        <div className="user-page-container">
             <div className="user-header">
-                <div className="header-strip"></div>
                 <h1>Личный кабинет</h1>
-                <div className="user-info">
-                    <div className="info-item">
+                <div className="user-info-card">
+                    <div className="user-info-item">
                         <span className="info-label">Логин:</span>
                         <span className="info-value">{auth.user.username}</span>
                     </div>
-                    <div className="info-item">
+                    <div className="user-info-item">
                         <span className="info-label">Роль:</span>
-                        <span className="info-value">{auth.user.role}</span>
+                        <span className={`role-badge ${auth.user.role}`}>
+                            {auth.user.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                        </span>
                     </div>
                 </div>
             </div>
 
             <div className="orders-section">
                 <h2>История заказов</h2>
+                
                 {orders.length === 0 ? (
-                    <p className="no-orders">У вас пока нет заказов</p>
+                    <div className="no-orders-message">
+                        У вас пока нет завершенных заказов
+                    </div>
                 ) : (
                     <div className="orders-list">
                         {orders.map(order => (
                             <div key={order.id} className="order-card">
                                 <div className="order-header">
-                                    <span className="order-id">Заказ #{order.id}</span>
-                                    <span className="order-date">{formatMoscowTime(order.created_at)}</span>
-                                    <span className={`order-status ${order.status.toLowerCase().replace(' ', '-')}`}>
+                                    <span className="order-number">Заказ #{order.id}</span>
+                                    <span className="order-date">
+                                        {formatMoscowTime(order.created_at)}
+                                    </span>
+                                    <span className={`order-status ${order.status.toLowerCase()}`}>
                                         {order.status}
                                     </span>
                                 </div>
-                                
-                                <div className="order-products">
-                                    <h4>Товары:</h4>
-                                    <ul>
-                                        {order.products?.map(product => (
-                                            <li key={product.id}>
-                                                <div className="product-item">
-                                                    <img 
-                                                        src={product.image_url || '/images/default-product.jpg'} 
-                                                        alt={product.name} 
-                                                        className="product-thumbnail"
-                                                    />
-                                                    <div className="product-info">
-                                                        <span className="product-name">{product.name}</span>
-                                                        <span className="product-price">{product.price?.toLocaleString() || '0'} ₽</span>
-                                                    </div>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                
-                                <div className="order-footer">
-                                    <div className="order-total">
-                                        Итого: {order.products?.reduce((sum, p) => sum + (p.price || 0), 0).toLocaleString()} ₽
-                                    </div>
+                                <div className="order-summary">
+                                    <span className="total-label">Итого:</span>
+                                    <span className="total-amount">{order.total?.toLocaleString() || 0} ₽</span>
                                 </div>
                             </div>
                         ))}

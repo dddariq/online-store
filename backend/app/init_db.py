@@ -1,24 +1,24 @@
-from app.db.session import SessionLocal
-from app.db.models import User
-from app.core.security import get_password_hash
+from sqlalchemy.orm import Session
+from app.database import SessionLocal
+from app.models.user import User
+import hashlib
 
 def init_db():
     db = SessionLocal()
-    user = db.query(User).filter(User.email == "admin@example.com").first()
-    if not user:
+    admin_user = db.query(User).filter(User.username == "admin").first()
+    if not admin_user:
+        hashed_password = hashlib.sha256("admin123".encode()).hexdigest()
         new_user = User(
-            email="admin@example.com",
-            hashed_password=get_password_hash("admin123"),
-            is_active=True,
-            is_superuser=True
+            username="admin",
+            password=hashed_password,
+            role="admin"
         )
         db.add(new_user)
         db.commit()
-        print("Admin user created")
+        print("Admin user created successfully")
     else:
         print("Admin user already exists")
     db.close()
 
 if __name__ == "__main__":
     init_db()
-
